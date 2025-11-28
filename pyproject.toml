@@ -31,6 +31,7 @@ dev = [
     "pytest-cov>=4.0.0",
     "responses>=0.23.0",
     "ruff>=0.1.0",
+    "pre-commit>=3.6.0",
 ]
 
 [project.urls]
@@ -49,3 +50,14 @@ select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/cebeo_client"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

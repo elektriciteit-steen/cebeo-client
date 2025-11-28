@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cebeoXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://b2b.cebeo.be/XMLschema/2.0.0/cebeoXML.xsd" version="2.0.0">
+	<Response>
+		<Message code="0">XML message received and validated all right</Message>
+		<Article>
+			<List>
+				<NumberOfLines>3</NumberOfLines>
+				<Item>
+					<Material>
+						<SupplierItemID>169509</SupplierItemID>
+						<CustomerItemID/>
+						<BrandCode>90</BrandCode>
+						<Reference>XVB3G2,5</Reference>
+						<ReelCode>R</ReelCode>
+						<ReelLength>100</ReelLength>
+						<PromotionCode/>
+						<BrandName>INSTALLATIEKABE</BrandName>
+						<Description>90XVB3G2,5 XVB 3G 2,5mm² rol installatiekabel F2</Description>
+					</Material>
+					<StockCode>A</StockCode>
+					<Stock>27300</Stock>
+					<UnitOfMeasure>MTR</UnitOfMeasure>
+					<UnitPrice>
+						<NetPrice>2,3810</NetPrice>
+						<TarifPrice>2,3810</TarifPrice>
+						<Ecotax>0,0000</Ecotax>
+						<Recupel>0,0000</Recupel>
+						<Sabam>0,0000</Sabam>
+						<TAV>21,00</TAV>
+					</UnitPrice>
+					<SalesPackQuantity>100</SalesPackQuantity>
+				</Item>
+				<Item>
+					<Material>
+						<SupplierItemID>171418</SupplierItemID>
+						<CustomerItemID/>
+						<BrandCode>36</BrandCode>
+						<Reference>23-366</Reference>
+						<ReelCode/>
+						<ReelLength>0</ReelLength>
+						<PromotionCode/>
+						<BrandName>NIKO</BrandName>
+						<Description>3623-366 Niko wandcontactdoos 2P+aardpen+veiligheid</Description>
+					</Material>
+					<StockCode>A</StockCode>
+					<Stock>9221</Stock>
+					<UnitOfMeasure>PCE</UnitOfMeasure>
+					<UnitPrice>
+						<NetPrice>6,8500</NetPrice>
+						<TarifPrice>6,8500</TarifPrice>
+						<Ecotax>0,0000</Ecotax>
+						<Recupel>0,0000</Recupel>
+						<Sabam>0,0000</Sabam>
+						<TAV>21,00</TAV>
+					</UnitPrice>
+					<SalesPackQuantity>10</SalesPackQuantity>
+				</Item>
+				<Item>
+					<Material>
+						<SupplierItemID>3388164</SupplierItemID>
+						<CustomerItemID/>
+						<BrandCode>31</BrandCode>
+						<Reference>PVC20-7035</Reference>
+						<ReelCode/>
+						<ReelLength>0</ReelLength>
+						<PromotionCode/>
+						<BrandName>ARVA PLASTICS</BrandName>
+						<Description>31PVC20-7035 Buis 20mm lichtgrijs</Description>
+					</Material>
+					<StockCode>A</StockCode>
+					<Stock>62049</Stock>
+					<UnitOfMeasure>MTR</UnitOfMeasure>
+					<UnitPrice>
+						<NetPrice>0,5239</NetPrice>
+						<TarifPrice>0,5239</TarifPrice>
+						<Ecotax>0,0000</Ecotax>
+						<Recupel>0,0000</Recupel>
+						<Sabam>0,0000</Sabam>
+						<TAV>21,00</TAV>
+					</UnitPrice>
+					<SalesPackQuantity>51</SalesPackQuantity>
+				</Item>
+			</List>
+		</Article>
+	</Response>
+</cebeoXML>

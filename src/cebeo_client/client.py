@@ -1,12 +1,13 @@
 """Cebeo B2B XML API client."""
 
 import xml.etree.ElementTree as ET
+from datetime import date
 from decimal import Decimal
 
 import requests
 
 from .exceptions import CebeoAPIError, CebeoAuthError, CebeoConnectionError
-from .models import Article, ArticleSearchResult
+from .models import Article, ArticleSearchResult, Order, OrderLine
 
 # Default API endpoint
 DEFAULT_BASE_URL = "https://b2b.cebeo.be/webservices/xml"
@@ -44,6 +45,35 @@ def _get_text(element: ET.Element, path: str, default: str = "") -> str:
     return default
 
 
+def _parse_date(element: ET.Element) -> date | None:
+    """Parse a Cebeo date element (Day/Month/Year sub-elements).
+
+    Args:
+        element: Element containing Day, Month, Year children
+
+    Returns:
+        date object or None if invalid/missing
+    """
+    if element is None:
+        return None
+
+    day = element.find("Day")
+    month = element.find("Month")
+    year = element.find("Year")
+
+    if day is None or month is None or year is None:
+        return None
+
+    try:
+        return date(
+            year=int(year.text or 0),
+            month=int(month.text or 0),
+            day=int(day.text or 0),
+        )
+    except (ValueError, TypeError):
+        return None
+
+
 class CebeoClient:
     """Client for the Cebeo B2B XML API.
 
@@ -72,11 +102,14 @@ class CebeoClient:
         self.timeout = timeout
         self.batch_size = batch_size
 
-    def _build_request_xml(self, operation_element: ET.Element) -> str:
+    def _build_request_xml(
+        self, operation_element: ET.Element, response_type: str = "List"
+    ) -> str:
         """Build a complete request XML document.
 
         Args:
             operation_element: The operation-specific element (Article/Order)
+            response_type: ResponseType value - "List", "Detail", or "Message"
 
         Returns:
             Complete XML string ready to send
@@ -95,7 +128,7 @@ class CebeoClient:
         ET.SubElement(customer, "Password").text = self.password
 
         # Response type
-        ET.SubElement(request, "ResponseType").text = "List"
+        ET.SubElement(request, "ResponseType").text = response_type
 
         # Add the operation element
         request.append(operation_element)
@@ -301,3 +334,147 @@ class CebeoClient:
             offset=offset,
             limit=limit,
         )
+
+    def _parse_order_line(self, line_elem: ET.Element) -> OrderLine:
+        """Parse an OrderLine element into an OrderLine dataclass."""
+        material = line_elem.find("Material")
+        unit_price = line_elem.find("UnitPrice")
+
+        return OrderLine(
+            supplier_order_line_id=_get_text(line_elem, "SupplierOrderLineID"),
+            supplier_item_id=_get_text(material, "SupplierItemID") if material else "",
+            description=_get_text(material, "Description") if material else "",
+            unit_of_measure=_get_text(line_elem, "UnitOfMeasure"),
+            ordered_quantity=_parse_int(_get_text(line_elem, "OrderedQuantity")),
+            net_price=_parse_european_decimal(
+                _get_text(unit_price, "NetPrice") if unit_price else ""
+            ),
+            stock=_parse_int(_get_text(line_elem, "Stock")),
+            stock_code=_get_text(line_elem, "StockCode"),
+            customer_order_line_id=_get_text(line_elem, "CustomerOrderLineID") or None,
+            customer_item_id=(
+                _get_text(material, "CustomerItemID") if material else None
+            )
+            or None,
+            brand_code=_get_text(material, "BrandCode") if material else None,
+            brand_name=_get_text(material, "BrandName") if material else None,
+            reference=_get_text(material, "Reference") if material else None,
+            reel_code=(_get_text(material, "ReelCode") if material else None) or None,
+            reel_length=(
+                _parse_int(_get_text(material, "ReelLength")) if material else None
+            )
+            or None,
+            backorder_quantity=_parse_int(_get_text(line_elem, "BOQuantity")) or None,
+            backorder_delivery_date=_parse_date(
+                line_elem.find("BOEstimatedDeliveryDate")
+            ),
+            delivery_quantity=_parse_int(_get_text(line_elem, "DeliveryQuantity"))
+            or None,
+            delivery_date=_parse_date(line_elem.find("DeliveryDate")),
+            requested_delivery_date=_parse_date(
+                line_elem.find("RequestedDeliveryDate")
+            ),
+        )
+
+    def _parse_order(self, detail_elem: ET.Element) -> Order:
+        """Parse an Order/Detail element into an Order dataclass."""
+        header = detail_elem.find("OrderHeader")
+        if header is None:
+            raise CebeoAPIError(-1, "Missing OrderHeader in response")
+
+        # Parse order lines
+        lines = []
+        for line_elem in detail_elem.findall("OrderLine"):
+            lines.append(self._parse_order_line(line_elem))
+
+        # Parse comments (there can be multiple)
+        comments = []
+        for comment_elem in header.findall("Comments"):
+            if comment_elem.text:
+                comments.append(comment_elem.text)
+
+        # Parse delivery address if present
+        delivery_address = None
+        delivery_loc = header.find("DeliveryLocation")
+        if delivery_loc is not None:
+            addr_elem = delivery_loc.find("DeliveryAddress")
+            if addr_elem is not None:
+                delivery_address = {
+                    "deliver_to": _get_text(addr_elem, "DeliverTo"),
+                    "street": _get_text(addr_elem, "Street"),
+                    "postal_code": _get_text(addr_elem, "PostalCode"),
+                    "city": _get_text(addr_elem, "City"),
+                }
+            # Include contact info if present
+            contact = _get_text(delivery_loc, "ContactPerson")
+            if contact and delivery_address:
+                delivery_address["contact_person"] = contact
+            phone = _get_text(delivery_loc, "ContactTelephone")
+            if phone and delivery_address:
+                delivery_address["contact_telephone"] = phone
+
+        return Order(
+            supplier_order_id=_get_text(header, "SupplierOrderID"),
+            customer_order_id=_get_text(header, "CustomerOrderID"),
+            order_date=_parse_date(header.find("OrderDate")) or date.today(),
+            lines=lines,
+            customer_order_ref=_get_text(header, "CustomerOrderRef") or None,
+            ordered_by=_get_text(header, "OrderedBy") or None,
+            delivery_address=delivery_address,
+            comments=comments if comments else None,
+        )
+
+    def order_get_open(self) -> Order | None:
+        """Fetch the open order from the e-shop cart.
+
+        This retrieves the "shopping cart" - items added to the e-shop
+        but not yet confirmed. Only one open order exists per customer.
+
+        Returns:
+            Order object with cart contents, or None if no open order exists
+
+        Raises:
+            CebeoAPIError: On API errors
+            CebeoAuthError: On authentication errors
+        """
+        # Build Order/Get element with OpenOrder
+        order_elem = ET.Element("Order")
+        get = ET.SubElement(order_elem, "Get")
+        ET.SubElement(get, "OpenOrder")
+
+        xml_body = self._build_request_xml(order_elem, response_type="Detail")
+        response = self._send_request(xml_body)
+
+        # Parse order from response
+        order_detail = response.find("Order/Detail")
+        if order_detail is None:
+            # No open order found
+            return None
+
+        return self._parse_order(order_detail)
+
+    def order_delete_open(self) -> bool:
+        """Delete the open order from the e-shop cart.
+
+        This clears the shopping cart. Typically called after importing
+        the cart contents into an external system.
+
+        Note: Cannot delete orders that are already confirmed/closed.
+
+        Returns:
+            True if order was deleted successfully
+
+        Raises:
+            CebeoAPIError: On API errors
+            CebeoAuthError: On authentication errors
+        """
+        # Build Order/Delete element with OpenOrder
+        order_elem = ET.Element("Order")
+        delete = ET.SubElement(order_elem, "Delete")
+        ET.SubElement(delete, "OpenOrder")
+
+        xml_body = self._build_request_xml(order_elem, response_type="Message")
+        self._send_request(xml_body)
+
+        # If we get here without exception, delete was successful
+        return True

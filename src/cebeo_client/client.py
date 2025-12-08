@@ -351,6 +351,7 @@ class CebeoClient:
             stock_code=_get_text(line_elem, "StockCode"),
             customer_order_line_id=_get_text(line_elem, "CustomerOrderLineID") or None,
             customer_item_id=(_get_text(material, "CustomerItemID") if material else None) or None,
+            ean=(_get_text(material, "EAN") if material else None) or None,
             brand_code=_get_text(material, "BrandCode") if material else None,
             brand_name=_get_text(material, "BrandName") if material else None,
             reference=_get_text(material, "Reference") if material else None,

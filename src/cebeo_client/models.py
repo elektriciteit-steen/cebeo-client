@@ -70,6 +70,7 @@ class OrderLine:
     stock_code: str
     customer_order_line_id: str | None = None
     customer_item_id: str | None = None
+    ean: str | None = None  # EAN/barcode
     brand_code: str | None = None
     brand_name: str | None = None
     reference: str | None = None

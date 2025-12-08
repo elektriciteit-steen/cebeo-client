@@ -413,6 +413,53 @@ class CebeoClient:
             comments=comments if comments else None,
         )
 
+    def order_get(
+        self,
+        supplier_order_id: str | None = None,
+        customer_order_id: str | None = None,
+        open_order: bool = False,
+    ) -> Order | None:
+        """Fetch an order from Cebeo.
+
+        Args:
+            supplier_order_id: Cebeo's order ID (SupplierOrderID)
+            customer_order_id: Customer's order reference (CustomerOrderID)
+            open_order: If True, fetch the open/shopping cart order
+
+        Returns:
+            Order object, or None if not found
+
+        Raises:
+            ValueError: If no identifier is provided
+            CebeoAPIError: On API errors
+            CebeoAuthError: On authentication errors
+        """
+        if not any([supplier_order_id, customer_order_id, open_order]):
+            raise ValueError(
+                "Must provide supplier_order_id, customer_order_id, or open_order=True"
+            )
+
+        # Build Order/Get element
+        order_elem = ET.Element("Order")
+        get = ET.SubElement(order_elem, "Get")
+
+        if open_order:
+            ET.SubElement(get, "OpenOrder")
+        elif supplier_order_id:
+            ET.SubElement(get, "SupplierOrderID").text = supplier_order_id
+        elif customer_order_id:
+            ET.SubElement(get, "CustomerOrderID").text = customer_order_id
+
+        xml_body = self._build_request_xml(order_elem, response_type="Detail")
+        response = self._send_request(xml_body)
+
+        # Parse order from response
+        order_detail = response.find("Order/Detail")
+        if order_detail is None:
+            return None
+
+        return self._parse_order(order_detail)
+
     def order_get_open(self) -> Order | None:
         """Fetch the open order from the e-shop cart.
 
@@ -426,21 +473,45 @@ class CebeoClient:
             CebeoAPIError: On API errors
             CebeoAuthError: On authentication errors
         """
-        # Build Order/Get element with OpenOrder
+        return self.order_get(open_order=True)
+
+    def order_delete(
+        self,
+        supplier_order_id: str | None = None,
+        open_order: bool = False,
+    ) -> bool:
+        """Delete an order from Cebeo.
+
+        Args:
+            supplier_order_id: Cebeo's order ID to delete
+            open_order: If True, delete the open/shopping cart order
+
+        Note: Cannot delete orders that are already confirmed/closed.
+
+        Returns:
+            True if order was deleted successfully
+
+        Raises:
+            ValueError: If no identifier is provided
+            CebeoAPIError: On API errors
+            CebeoAuthError: On authentication errors
+        """
+        if not any([supplier_order_id, open_order]):
+            raise ValueError("Must provide supplier_order_id or open_order=True")
+
+        # Build Order/Delete element
         order_elem = ET.Element("Order")
-        get = ET.SubElement(order_elem, "Get")
-        ET.SubElement(get, "OpenOrder")
+        delete = ET.SubElement(order_elem, "Delete")
 
-        xml_body = self._build_request_xml(order_elem, response_type="Detail")
-        response = self._send_request(xml_body)
+        if open_order:
+            ET.SubElement(delete, "OpenOrder")
+        elif supplier_order_id:
+            ET.SubElement(delete, "SupplierOrderID").text = supplier_order_id
 
-        # Parse order from response
-        order_detail = response.find("Order/Detail")
-        if order_detail is None:
-            # No open order found
-            return None
+        xml_body = self._build_request_xml(order_elem, response_type="Message")
+        self._send_request(xml_body)
 
-        return self._parse_order(order_detail)
+        return True
 
     def order_delete_open(self) -> bool:
         """Delete the open order from the e-shop cart.
@@ -457,13 +528,4 @@ class CebeoClient:
             CebeoAPIError: On API errors
             CebeoAuthError: On authentication errors
         """
-        # Build Order/Delete element with OpenOrder
-        order_elem = ET.Element("Order")
-        delete = ET.SubElement(order_elem, "Delete")
-        ET.SubElement(delete, "OpenOrder")
-
-        xml_body = self._build_request_xml(order_elem, response_type="Message")
-        self._send_request(xml_body)
-
-        # If we get here without exception, delete was successful
-        return True
+        return self.order_delete(open_order=True)

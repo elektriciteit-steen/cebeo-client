@@ -102,9 +102,7 @@ class CebeoClient:
         self.timeout = timeout
         self.batch_size = batch_size
 
-    def _build_request_xml(
-        self, operation_element: ET.Element, response_type: str = "List"
-    ) -> str:
+    def _build_request_xml(self, operation_element: ET.Element, response_type: str = "List") -> str:
         """Build a complete request XML document.
 
         Args:
@@ -352,28 +350,18 @@ class CebeoClient:
             stock=_parse_int(_get_text(line_elem, "Stock")),
             stock_code=_get_text(line_elem, "StockCode"),
             customer_order_line_id=_get_text(line_elem, "CustomerOrderLineID") or None,
-            customer_item_id=(
-                _get_text(material, "CustomerItemID") if material else None
-            )
-            or None,
+            customer_item_id=(_get_text(material, "CustomerItemID") if material else None) or None,
             brand_code=_get_text(material, "BrandCode") if material else None,
             brand_name=_get_text(material, "BrandName") if material else None,
             reference=_get_text(material, "Reference") if material else None,
             reel_code=(_get_text(material, "ReelCode") if material else None) or None,
-            reel_length=(
-                _parse_int(_get_text(material, "ReelLength")) if material else None
-            )
+            reel_length=(_parse_int(_get_text(material, "ReelLength")) if material else None)
             or None,
             backorder_quantity=_parse_int(_get_text(line_elem, "BOQuantity")) or None,
-            backorder_delivery_date=_parse_date(
-                line_elem.find("BOEstimatedDeliveryDate")
-            ),
-            delivery_quantity=_parse_int(_get_text(line_elem, "DeliveryQuantity"))
-            or None,
+            backorder_delivery_date=_parse_date(line_elem.find("BOEstimatedDeliveryDate")),
+            delivery_quantity=_parse_int(_get_text(line_elem, "DeliveryQuantity")) or None,
             delivery_date=_parse_date(line_elem.find("DeliveryDate")),
-            requested_delivery_date=_parse_date(
-                line_elem.find("RequestedDeliveryDate")
-            ),
+            requested_delivery_date=_parse_date(line_elem.find("RequestedDeliveryDate")),
         )
 
     def _parse_order(self, detail_elem: ET.Element) -> Order:

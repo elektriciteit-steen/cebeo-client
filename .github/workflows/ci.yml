@@ -1,3 +1,9 @@
+# CI: lint and test the cebeo-client package across Python 3.10-3.12.
+# GitHub-hosted exemption: cebeo-client is a PUBLIC repo, and the org self-hosted
+# runner group has allows_public_repositories=false (public repos can't be served
+# by the self-hosted fleet, and running public-PR code on it is a security risk).
+# So this CI stays on ubuntu-latest with actions/setup-python.
+# Canon: bess-documentation/infrastructure/self-hosted-runner-ci-patterns.md
 name: CI
 
 on:
@@ -6,18 +12,26 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -43,11 +57,12 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 

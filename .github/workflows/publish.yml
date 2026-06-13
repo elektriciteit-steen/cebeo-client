@@ -1,17 +1,30 @@
+# Publish to PyPI: builds the cebeo-client distribution on a tagged GitHub
+# Release and publishes via PyPI OIDC trusted publishing.
+# GitHub-hosted exemption: stays on ubuntu-latest (NOT the self-hosted ci pool)
+# because PyPI OIDC trusted publishing is cleanest/most secure from GitHub-hosted
+# runners with the ambient id-token; the self-hosted pool is not a trusted publisher.
+# Canon: bess-documentation/infrastructure/self-hosted-runner-ci-patterns.md
 name: Publish to PyPI
 
 on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -33,6 +46,7 @@ jobs:
   publish-pypi:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: pypi
       url: https://pypi.org/p/cebeo-client

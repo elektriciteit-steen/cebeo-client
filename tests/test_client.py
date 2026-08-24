@@ -9,6 +9,7 @@ import responses
 from cebeo_client import (
     Article,
     CebeoAPIError,
+    CebeoArticleNotFoundError,
     CebeoAuthError,
     CebeoClient,
     CebeoConnectionError,
@@ -214,6 +215,92 @@ class TestErrorHandling:
             client.article_get(["169509"])
 
         assert exc_info.value.code == 1
+
+    @responses.activate
+    def test_article_get_art0011_raises_not_found_not_auth(self, client):
+        """ART0011 (article not found) must surface as a not-found condition.
+
+        The Cebeo API reuses numeric status code 1 for both auth failures and
+        article errors. The ART0011 payload means the article does not exist —
+        a normal miss — so it must raise CebeoArticleNotFoundError, NOT
+        CebeoAuthError. A caller distinguishes the two by exception type.
+        """
+        not_found_response = """<?xml version="1.0" encoding="UTF-8"?>
+        <cebeoXML version="2.0.0">
+            <Response>
+                <Message code="1">ART0011</Message>
+            </Response>
+        </cebeoXML>"""
+
+        responses.add(
+            responses.POST,
+            client.base_url,
+            body=not_found_response,
+            status=200,
+            content_type="application/xml",
+        )
+
+        with pytest.raises(CebeoArticleNotFoundError) as exc_info:
+            client.article_get(["ABBKIM600763W"])
+
+        assert exc_info.value.code == 1
+        assert exc_info.value.message == "ART0011"
+        # Must NOT be an auth error: callers tell the two apart by type.
+        assert not isinstance(exc_info.value, CebeoAuthError)
+
+    @responses.activate
+    def test_article_search_art0011_raises_not_found_not_auth(self, client):
+        """article_search is affected the same way as article_get.
+
+        Reproduces the live evidence: a search for an article that does not
+        exist returns code 1 with payload ART0011, which previously surfaced
+        as CebeoAuthError and aborted the run.
+        """
+        not_found_response = """<?xml version="1.0" encoding="UTF-8"?>
+        <cebeoXML version="2.0.0">
+            <Response>
+                <Message code="1">ART0011</Message>
+            </Response>
+        </cebeoXML>"""
+
+        responses.add(
+            responses.POST,
+            client.base_url,
+            body=not_found_response,
+            status=200,
+            content_type="application/xml",
+        )
+
+        with pytest.raises(CebeoArticleNotFoundError) as exc_info:
+            client.article_search(keywords=["ABBKIM600763W"])
+
+        assert exc_info.value.code == 1
+        assert exc_info.value.message == "ART0011"
+        assert not isinstance(exc_info.value, CebeoAuthError)
+
+    @responses.activate
+    def test_article_search_genuine_auth_still_raises_auth_error(self, client):
+        """A genuine auth failure must still raise CebeoAuthError, not found."""
+        auth_error = """<?xml version="1.0" encoding="UTF-8"?>
+        <cebeoXML version="2.0.0">
+            <Response>
+                <Message code="1">Invalid credentials</Message>
+            </Response>
+        </cebeoXML>"""
+
+        responses.add(
+            responses.POST,
+            client.base_url,
+            body=auth_error,
+            status=200,
+            content_type="application/xml",
+        )
+
+        with pytest.raises(CebeoAuthError) as exc_info:
+            client.article_search(keywords=["XVB"])
+
+        assert exc_info.value.code == 1
+        assert not isinstance(exc_info.value, CebeoArticleNotFoundError)
 
 
 class TestArticleSearch:

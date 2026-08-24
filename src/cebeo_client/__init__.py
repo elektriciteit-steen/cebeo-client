@@ -4,10 +4,16 @@ A Python client for interacting with Cebeo's B2B XML web services.
 """
 
 from .client import CebeoClient
-from .exceptions import CebeoAPIError, CebeoAuthError, CebeoConnectionError, CebeoError
+from .exceptions import (
+    CebeoAPIError,
+    CebeoArticleNotFoundError,
+    CebeoAuthError,
+    CebeoConnectionError,
+    CebeoError,
+)
 from .models import Article, ArticleSearchResult, Order, OrderLine
 
-__version__ = "0.1.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "CebeoClient",
@@ -18,5 +24,6 @@ __all__ = [
     "CebeoError",
     "CebeoAPIError",
     "CebeoAuthError",
+    "CebeoArticleNotFoundError",
     "CebeoConnectionError",
 ]

@@ -50,10 +50,19 @@ client = CebeoClient(
 ## Error Handling
 
 ```python
-from cebeo_client import CebeoAPIError, CebeoAuthError, CebeoConnectionError
+from cebeo_client import (
+    CebeoAPIError,
+    CebeoArticleNotFoundError,
+    CebeoAuthError,
+    CebeoConnectionError,
+)
 
 try:
     articles = client.article_get(["123"])
+except CebeoArticleNotFoundError as e:
+    # The article does not exist in the Cebeo catalog. This is a normal
+    # miss (e.g. during a bulk sweep), not a credential failure.
+    print(f"Article not found (code {e.code}): {e.message}")
 except CebeoAuthError as e:
     print(f"Authentication failed: {e}")
 except CebeoAPIError as e:
@@ -61,6 +70,13 @@ except CebeoAPIError as e:
 except CebeoConnectionError as e:
     print(f"Connection failed: {e}")
 ```
+
+`CebeoArticleNotFoundError` is a subclass of `CebeoAPIError` (but **not** of
+`CebeoAuthError`), so a caller can tell a routine miss apart from a broken
+credentials failure by exception type, without string-matching error messages.
+This matters for bulk sweeps that ask about thousands of articles: a missing
+article is routine and should be skipped, while an auth error must abort the
+entire run.
 
 ## Development
 

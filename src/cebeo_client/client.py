@@ -6,8 +6,23 @@ from decimal import Decimal
 
 import requests
 
-from .exceptions import CebeoAPIError, CebeoAuthError, CebeoConnectionError
+from .exceptions import (
+    CebeoAPIError,
+    CebeoArticleNotFoundError,
+    CebeoAuthError,
+    CebeoConnectionError,
+)
 from .models import Article, ArticleSearchResult, Order, OrderLine
+
+# Cebeo <Message> payload codes that indicate a referenced article was not
+# found. The API's numeric status code space is overloaded: code 1 covers both
+# authentication failures (invalid user/password, no web-service access,
+# invalid/ambiguous customer) *and* article errors. The real condition is
+# carried by this message payload, not by the numeric code. ART0011 means
+# "article not found" — a normal miss, not an auth failure. The set is
+# intentionally explicit: extend it as new not-found payloads are confirmed
+# against the live API.
+_ARTICLE_NOT_FOUND_CODES = frozenset({"ART0011"})
 
 # Default API endpoint
 DEFAULT_BASE_URL = "https://b2b.cebeo.be/webservices/xml"
@@ -180,6 +195,14 @@ class CebeoClient:
 
             # Code 0 = success
             if code != 0:
+                # The numeric status code is overloaded (see
+                # _ARTICLE_NOT_FOUND_CODES): code 1 can be either an auth
+                # failure or an article-not-found condition. Check the payload
+                # first so a normal miss surfaces as a distinct, catchable
+                # not-found error instead of aborting the run as an auth
+                # failure.
+                if msg_text.strip() in _ARTICLE_NOT_FOUND_CODES:
+                    raise CebeoArticleNotFoundError(code, msg_text)
                 # Authentication errors typically have specific codes
                 if code in (1, 2, 3):  # Common auth error codes
                     raise CebeoAuthError(code, msg_text)

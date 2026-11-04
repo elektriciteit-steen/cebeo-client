@@ -13,7 +13,7 @@ from .exceptions import (
 )
 from .models import Article, ArticleSearchResult, Order, OrderLine
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 __all__ = [
     "CebeoClient",

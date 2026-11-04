@@ -1,5 +1,6 @@
 """Cebeo B2B XML API client."""
 
+import re
 import xml.etree.ElementTree as ET
 from datetime import date
 from decimal import Decimal
@@ -19,10 +20,11 @@ from .models import Article, ArticleSearchResult, Order, OrderLine
 # authentication failures (invalid user/password, no web-service access,
 # invalid/ambiguous customer) *and* article errors. The real condition is
 # carried by this message payload, not by the numeric code. ART0011 means
-# "article not found" — a normal miss, not an auth failure. The set is
-# intentionally explicit: extend it as new not-found payloads are confirmed
-# against the live API.
-_ARTICLE_NOT_FOUND_CODES = frozenset({"ART0011"})
+# "article not found" — a normal miss, not an auth failure. The live API words
+# the payload around the code (seen: "ART0011", "Error: ART0011 "), so the whole
+# code is matched anywhere in it. The list is intentionally explicit: extend it
+# as new not-found payloads are confirmed against the live API.
+_ARTICLE_NOT_FOUND_PAYLOAD = re.compile(r"\bART0011\b")
 
 # Default API endpoint
 DEFAULT_BASE_URL = "https://b2b.cebeo.be/webservices/xml"
@@ -196,12 +198,12 @@ class CebeoClient:
             # Code 0 = success
             if code != 0:
                 # The numeric status code is overloaded (see
-                # _ARTICLE_NOT_FOUND_CODES): code 1 can be either an auth
+                # _ARTICLE_NOT_FOUND_PAYLOAD): code 1 can be either an auth
                 # failure or an article-not-found condition. Check the payload
                 # first so a normal miss surfaces as a distinct, catchable
                 # not-found error instead of aborting the run as an auth
                 # failure.
-                if msg_text.strip() in _ARTICLE_NOT_FOUND_CODES:
+                if _ARTICLE_NOT_FOUND_PAYLOAD.search(msg_text):
                     raise CebeoArticleNotFoundError(code, msg_text)
                 # Authentication errors typically have specific codes
                 if code in (1, 2, 3):  # Common auth error codes

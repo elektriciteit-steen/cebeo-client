@@ -278,6 +278,55 @@ class TestErrorHandling:
         assert exc_info.value.message == "ART0011"
         assert not isinstance(exc_info.value, CebeoAuthError)
 
+    @pytest.mark.parametrize(
+        "payload",
+        ["Error: ART0011 ", "Error: ART0011", " ART0011 ", "error ART0011"],
+    )
+    @responses.activate
+    def test_article_search_worded_art0011_is_not_found(self, client, payload):
+        """Live Cebeo also wraps the code: a search answered ``Error: ART0011 ``.
+
+        A miss must stay a miss however the payload is worded around the code.
+        """
+        responses.add(
+            responses.POST,
+            client.base_url,
+            body=f"""<?xml version="1.0" encoding="UTF-8"?>
+        <cebeoXML version="2.0.0">
+            <Response>
+                <Message code="1">{payload}</Message>
+            </Response>
+        </cebeoXML>""",
+            status=200,
+            content_type="application/xml",
+        )
+
+        with pytest.raises(CebeoArticleNotFoundError) as exc_info:
+            client.article_search(keywords=["UNKNOWN"])
+
+        assert exc_info.value.code == 1
+        assert exc_info.value.message == payload
+
+    @pytest.mark.parametrize("payload", ["ART00110", "XART0011", "ART0012", "Invalid password"])
+    @responses.activate
+    def test_near_miss_payloads_stay_auth_errors(self, client, payload):
+        """Only the whole code means *not found*: a broken login must never read as one."""
+        responses.add(
+            responses.POST,
+            client.base_url,
+            body=f"""<?xml version="1.0" encoding="UTF-8"?>
+        <cebeoXML version="2.0.0">
+            <Response>
+                <Message code="1">{payload}</Message>
+            </Response>
+        </cebeoXML>""",
+            status=200,
+            content_type="application/xml",
+        )
+
+        with pytest.raises(CebeoAuthError):
+            client.article_search(keywords=["UNKNOWN"])
+
     @responses.activate
     def test_article_search_genuine_auth_still_raises_auth_error(self, client):
         """A genuine auth failure must still raise CebeoAuthError, not found."""
